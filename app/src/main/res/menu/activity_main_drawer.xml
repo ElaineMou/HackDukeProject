@@ -12,6 +12,7 @@
             android:title="Tools" />
         <item android:id="@+id/button" android:icon="@android:drawable/ic_btn_speak_now"
             android:title="Record" />
+
     </group>
 
     <item android:title="Communicate">
