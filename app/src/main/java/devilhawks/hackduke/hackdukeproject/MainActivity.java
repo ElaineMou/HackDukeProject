@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -16,10 +17,12 @@ import android.view.MenuItem;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
+    private static final String TAG = "MainClass";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -85,9 +88,11 @@ public class MainActivity extends AppCompatActivity
             // Handle the camera action
         } else if (id == R.id.nav_gallery) {
             Intent intent = new Intent(this, PhotoViewerActivity.class);
+            Log.d(TAG,"about to start gallery");
             startActivity(intent);
         } else if (id == R.id.nav_slideshow) {
             Intent intent = new Intent(this, FaceTrackerActivity.class);
+            Log.d(TAG,"about to start facetrack");
             startActivity(intent);
         } else if (id == R.id.nav_manage) {
 
@@ -95,6 +100,10 @@ public class MainActivity extends AppCompatActivity
 
         } else if (id == R.id.nav_send) {
 
+        } else if (id == R.id.button){
+            Intent intent = new Intent(this, AudioRecorder.class);
+            Log.d(TAG,"about to start intent");
+            startActivity(intent);
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);

@@ -10,6 +10,9 @@
     <string name="low_storage_error">Face detector dependencies cannot be downloaded due to low device storage</string>
     <string name="title_activity_face_tracker">FaceTrackerActivity</string>
 
+    <string name="action">Settings</string>
+    <string name="title_activity_audio_recorder">AudioRecorder</string>
+
 
     <string name="ok">OK</string>
     <string name="permission_camera_rationale">Access to the camera is needed for detection</string>

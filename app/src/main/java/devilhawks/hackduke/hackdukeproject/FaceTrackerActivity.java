@@ -98,6 +98,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
 
         final Activity thisActivity = this;
 
+        Log.d(TAG,"clicked and printed");
         View.OnClickListener listener = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
