@@ -79,8 +79,8 @@ public final class FaceTrackerActivity extends AppCompatActivity {
     public static final String JSON_PAUSES_KEY = "pausesKey";
     public static final String JSON_PAUSETIMES_KEY = "pauseTimesKey";
     public static final String JSON_PAUSEAVG_KEY = "pauseAvgKey";
-    private static final String JSON_DURATION_KEY = "durationKey";
-    private static final String JSON_DATE_KEY = "dateKey";
+    public static final String JSON_DURATION_KEY = "durationKey";
+    public static final String JSON_DATE_KEY = "dateKey";
 
     private CameraSource mCameraSource = null;
 
@@ -300,6 +300,11 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         if (mCameraSource != null) {
             mCameraSource.release();
         }
+        if(mSpeechRecognizer!=null){
+            mSpeechRecognizer.stopListening();
+            mSpeechRecognizer.destroy();
+            mSpeechRecognizer = null;
+        }
     }
 
     /**
@@ -404,7 +409,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         jsonObject.put(JSON_TURNS_KEY, turns);
         jsonObject.put(JSON_PAUSES_KEY, pauses);
         jsonObject.put(JSON_PAUSEAVG_KEY, averagePause);
-        jsonObject.put(JSON_DURATION_KEY, (endTime - startTime)/1000);
+        jsonObject.put(JSON_DURATION_KEY, endTime - startTime);
         jsonObject.put(JSON_DATE_KEY, endTime);
         //jsonObject.put(MainActivity.JSON_PAUSETIMES_KEY, pauseTimes);
 
@@ -417,53 +422,6 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         } finally {
             fileWriter.flush();
             fileWriter.close();
-        }
-    }
-
-
-    protected void loadFromFile(File file){
-        if(file.exists()) {
-            BufferedReader bufferedReader = null;
-            StringBuilder stringBuilder = null;
-            try {
-                bufferedReader = new BufferedReader(new FileReader(file));
-                stringBuilder = new StringBuilder();
-                String line = bufferedReader.readLine();
-
-                while (line != null) {
-                    stringBuilder.append(line);
-                    line = bufferedReader.readLine();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                if (bufferedReader != null) {
-                    try {
-                        bufferedReader.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-
-            if (stringBuilder != null) {
-                JSONObject jsonObject = null;
-                int blinks = 0;
-                int turns = 0;
-                int tilts = 0;
-                int pauses = 0;
-
-                // Load JSON string from file
-                try {
-                    jsonObject = new JSONObject(stringBuilder.toString());
-                    blinks = jsonObject.getInt(JSON_BLINKS_KEY);
-                    turns = jsonObject.getInt(JSON_TURNS_KEY);
-                    tilts = jsonObject.getInt(JSON_TILTS_KEY);
-                    pauses = jsonObject.getInt(JSON_PAUSES_KEY);
-                } catch (JSONException e){
-                    e.printStackTrace();
-                }
-            }
         }
     }
 

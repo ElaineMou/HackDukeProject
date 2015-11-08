@@ -3,8 +3,9 @@
     package="devilhawks.hackduke.hackdukeproject" >
 
     <uses-feature android:name="android.hardware.camera" />
+
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="true"
@@ -34,6 +35,11 @@
         <activity
             android:name=".FaceTrackerActivity"
             android:label="@string/title_activity_face_tracker"
+            android:theme="@style/AppTheme.NoActionBar" >
+        </activity>
+        <activity
+            android:name=".ShowDataActivity"
+            android:label="@string/title_activity_show_data"
             android:theme="@style/AppTheme.NoActionBar" >
         </activity>
     </application>
