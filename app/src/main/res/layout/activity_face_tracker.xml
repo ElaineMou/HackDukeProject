@@ -4,6 +4,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/topLayout"
     android:orientation="vertical"
+    android:background="@color/colorPrimary"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:keepScreenOn="true">
@@ -22,13 +23,13 @@
 
     <TextView
         android:id="@+id/textView"
-        android:text="Waiting to start"
+        android:text="Start recording anytime"
         android:textColor="@android:color/white"
         android:gravity="center"
+        android:layout_marginBottom="40dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:background="@color/colorPrimary"/>
+        android:layout_gravity="bottom|end"/>
 
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/fab"

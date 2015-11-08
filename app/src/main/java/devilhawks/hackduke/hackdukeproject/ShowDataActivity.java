@@ -1,10 +1,19 @@
 package devilhawks.hackduke.hackdukeproject;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -15,12 +24,19 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 
 public class ShowDataActivity extends AppCompatActivity {
 
     private ListView listView;
+    public static float maxBlinkRate = 0;
+    public static float maxTurnRate = 0;
+    public static float maxTiltRate = 0;
+    public static float maxPauseRate = 0;
+    public static float maxPauseAvg = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,23 +58,18 @@ public class ShowDataActivity extends AppCompatActivity {
             } else { // Otherwise, add all files of display images in the list
                 textView.setVisibility(View.INVISIBLE);
 
-                ArrayList<String> strings = new ArrayList<>();
+                ArrayList<Dataset> sets = new ArrayList<>();
                 for(File file: files){
-                    strings.add(extractFile(file));
+                    sets.add(extractFile(file));
                 }
 
-                ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,strings);
-                listView.setAdapter(arrayAdapter);
-
-                //WordAdapter wordAdapter = new WordAdapter(this, wordFiles, memoryCache, diskCache);
-
-                //ListView listView = (ListView) findViewById(R.id.list);
-                //listView.setAdapter(wordAdapter);
+                DataSetAdapter dataSetAdapter = new DataSetAdapter(this, sets);
+                listView.setAdapter(dataSetAdapter);
             }
         }
     }
 
-    protected String extractFile(File file){
+    protected Dataset extractFile(File file){
         if(file.exists()) {
             int blinks = 0;
             int turns = 0;
@@ -108,24 +119,107 @@ public class ShowDataActivity extends AppCompatActivity {
                 }
             }
 
-            long second = (duration / 1000) % 60;
-            long minute = (duration / (1000 * 60)) % 60;
-            long hour = (duration / (1000 * 60 * 60)) % 24;
-            String time = String.format("%02d:%02d:%02d:%d\n", hour, minute, second, duration);
+            int second = (int) (duration / 1000) % 60;
+            int minute = (int)(duration / (1000 * 60)) % 60;
+            String time = String.format("%02d:%02d", minute, second);
 
             Calendar calendar = Calendar.getInstance();
             calendar.setTimeInMillis(date);
             int mYear = calendar.get(Calendar.YEAR);
             int mMonth = calendar.get(Calendar.MONTH);
             int mDay = calendar.get(Calendar.DAY_OF_MONTH);
-            String formattedDate = String.format("%02d/%02d/%02d\n",mMonth,mDay,mYear);
+            String formattedTime = new SimpleDateFormat("HH:mm:ss").format(new Date(date));
+            String formattedDate = String.format("%02d/%02d/%02d ", mMonth, mDay, mYear) + formattedTime + "\n";
 
-            return("Blinks: " + blinks + "\n" + "Turns: " + turns + "\n" +
-                "Tilts: " + tilts + "\n" + "Pauses: " + pauses + "\n" + "Pause Avg. Time: "
-                    + String.format("%.2f",pauseAvg) + "\n" + "Duration: " + time +
-                    "Date:" + formattedDate);
+            float timeInMinutes = minute + ((float)second)/60;
+            float blinkRate = ((float) blinks)/timeInMinutes;
+            float turnRate = ((float)turns)/timeInMinutes;
+            float tiltRate = ((float)tilts)/timeInMinutes;
+            float pauseRate = ((float)pauses)/timeInMinutes;
+            if(blinkRate > maxBlinkRate) { maxBlinkRate = blinkRate;}
+            if(turnRate > maxTurnRate) {maxTurnRate = turnRate;}
+            if(tiltRate > maxTiltRate) {maxTiltRate = tiltRate;}
+            if(pauseRate > maxPauseRate) {maxPauseRate = pauseRate;}
+            if(pauseAvg > maxPauseAvg) {maxPauseAvg = pauseAvg;}
+
+            return new Dataset(formattedDate, time, blinkRate, turnRate, tiltRate, pauseRate, pauseAvg);
         }
         return null;
     }
 
+    class DataSetAdapter extends BaseAdapter {
+
+        /**
+         * Context for this adapter.
+         */
+        Context context;
+        /**
+         * Inflater to load views.
+         */
+        LayoutInflater inflater;
+        /**
+         * List of files to source word info from.
+         */
+        ArrayList<Dataset> datasets;
+
+        /**
+         * Image size for all character thumbnails (in dp).
+         */
+        public static final int ITEM_HEIGHT = 60;
+
+        public DataSetAdapter(Context context, ArrayList<Dataset> sets){
+            this.context = context;
+            this.inflater = LayoutInflater.from(context);
+            this.datasets = sets;
+        }
+
+        @Override
+        public int getCount() {
+            return datasets.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return datasets.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return 0;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            View view;
+            ViewHolder holder;
+
+            if (convertView == null) {  // if it's not recycled, initialize some attributes
+                view = inflater.inflate(R.layout.content_dataset,parent,false);
+                holder = new ViewHolder();
+
+                holder.textView = (TextView) view.findViewById(R.id.date);
+                holder.canvasView = (CanvasView) view.findViewById(R.id.canvas_view);
+                view.setTag(holder);
+            } else {
+                view = convertView;
+                holder = (ViewHolder) view.getTag();
+            }
+
+            // Clear lists on view
+            Dataset set = datasets.get(position);
+            holder.textView.setText("Date: " + set.formattedDate + " " + "Duration: " + set.formattedDuration);
+            holder.canvasView.clearCanvas();
+            holder.canvasView.setDataset(set);
+            return view;
+        }
+    }
+
+    /**
+     * Class used to hold references to the view components for quick access
+     */
+    private class ViewHolder{
+
+        public TextView textView;
+        public CanvasView canvasView;
+    }
 }

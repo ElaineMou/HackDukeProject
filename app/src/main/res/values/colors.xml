@@ -4,4 +4,10 @@
     <color name="colorPrimary">#3F51B5</color>
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
+
+    <color name="column1">#CE93D8</color>
+    <color name="column2">#BA68C8</color>
+    <color name="column3">#AB47BC</color>
+    <color name="column4">#9C27B0</color>
+    <color name="column5">#8E24AA</color>
 </resources>
