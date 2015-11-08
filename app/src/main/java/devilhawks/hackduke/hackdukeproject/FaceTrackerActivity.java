@@ -60,7 +60,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
     private GraphicOverlay mGraphicOverlay;
     private SpeechRecognizer mSpeechRecognizer;
     private FloatingActionButton fab;
-    private Intent intent;
+    private Intent intent = null;
 
     private static final int RC_HANDLE_GMS = 9001;
     // permission request codes need to be < 256
@@ -89,15 +89,19 @@ public final class FaceTrackerActivity extends AppCompatActivity {
                     if(mSpeechRecognizer==null) {
                         mSpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(FaceTrackerActivity.this);
                         mSpeechRecognizer.setRecognitionListener(new Listener());
-                        intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-                        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-                        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                        if(intent == null) {
+                            intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+                            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,800);
+                        }
                         mSpeechRecognizer.startListening(intent);
                     }
                 } else {
                     mSpeechRecognizer.stopListening();
                     mSpeechRecognizer.destroy();
                     mSpeechRecognizer = null;
+                    mGraphicOverlay.clear();
                 }
             }
         });
@@ -331,8 +335,10 @@ public final class FaceTrackerActivity extends AppCompatActivity {
          */
         @Override
         public void onUpdate(FaceDetector.Detections<Face> detectionResults, Face face) {
-            mOverlay.add(mFaceGraphic);
-            mFaceGraphic.updateFace(face);
+            if(isRecording) {
+                mOverlay.add(mFaceGraphic);
+                mFaceGraphic.updateFace(face);
+            }
         }
 
         /**
@@ -391,6 +397,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         public void onResults(Bundle results) {
             ArrayList<String> data = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             Toast.makeText(FaceTrackerActivity.this, data.get(0), Toast.LENGTH_SHORT).show();
+            mSpeechRecognizer.setRecognitionListener(this);
             mSpeechRecognizer.startListening(intent);
         }
 
