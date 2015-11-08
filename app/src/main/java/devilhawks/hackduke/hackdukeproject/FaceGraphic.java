@@ -115,8 +115,8 @@ class FaceGraphic extends GraphicOverlay.Graphic {
             }
         }
 
-        canvas.drawText("right eye: " + String.format("%.2f", rightEyeX) + " " + String.format("%.2f", rightEyeY), x + ID_X_OFFSET * 2, y + ID_Y_OFFSET * 2, mIdPaint);
-        canvas.drawText("left eye: " + String.format("%.2f", leftEyeX) + " " + String.format("%.2f", leftEyeY), x - ID_X_OFFSET*2, y - ID_Y_OFFSET*2, mIdPaint);
+        //canvas.drawText("right eye: " + String.format("%.2f", rightEyeX) + " " + String.format("%.2f", rightEyeY), x + ID_X_OFFSET * 2, y + ID_Y_OFFSET * 2, mIdPaint);
+        //canvas.drawText("left eye: " + String.format("%.2f", leftEyeX) + " " + String.format("%.2f", leftEyeY), x - ID_X_OFFSET*2, y - ID_Y_OFFSET*2, mIdPaint);
         //canvas.drawCircle(x, y, FACE_POSITION_RADIUS, mFacePositionPaint);
         //canvas.drawText("id: " + mFaceId, x + ID_X_OFFSET, y + ID_Y_OFFSET, mIdPaint);
         //canvas.drawText("happiness: " + String.format("%.2f", face.getIsSmilingProbability()), x - ID_X_OFFSET, y - ID_Y_OFFSET, mIdPaint);
@@ -124,12 +124,12 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         //canvas.drawText("left eye: " + String.format("%.2f", face.getIsLeftEyeOpenProbability()), x - ID_X_OFFSET*2, y - ID_Y_OFFSET*2, mIdPaint);
         //canvas.drawText("Y: " + String.format("%.2f", face.getEulerY()) + "\nZ: " + String.format("%.2f", face.getEulerZ()), x - ID_X_OFFSET*2, y - ID_Y_OFFSET*2, mIdPaint);
         // Draws a bounding box around the face.
-        /*float xOffset = scaleX(face.getWidth() / 2.0f);
+        float xOffset = scaleX(face.getWidth() / 2.0f);
         float yOffset = scaleY(face.getHeight() / 2.0f);
         float left = x - xOffset;
         float top = y - yOffset;
         float right = x + xOffset;
         float bottom = y + yOffset;
-        canvas.drawRect(left, top, right, bottom, mBoxPaint);*/
+        canvas.drawRect(left, top, right, bottom, mBoxPaint);
     }
 }

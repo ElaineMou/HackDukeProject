@@ -22,7 +22,7 @@
 
     <TextView
         android:id="@+id/textView"
-        android:text="Blinks:0"
+        android:text="Waiting to start"
         android:textColor="@android:color/white"
         android:gravity="center"
         android:layout_width="match_parent"

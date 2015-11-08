@@ -23,8 +23,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -34,6 +38,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -44,15 +49,38 @@ import com.google.android.gms.vision.Tracker;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Random;
 
 /**
  * Activity for the face tracker app.  This app detects faces with the rear facing camera, and draws
  * overlay graphics to indicate the position, size, and ID of each face.
  */
 public final class FaceTrackerActivity extends AppCompatActivity {
+
+    /**
+     * File type for JSON storage.
+     */
+    public static final String TEXT_FILE_TYPE = ".txt";
     private static final String TAG = "FaceTracker";
+
+    public static final String JSON_BLINKS_KEY = "blinksKey";
+    public static final String JSON_TILTS_KEY = "tiltsKey";
+    public static final String JSON_TURNS_KEY = "turnsKey";
+    public static final String JSON_PAUSES_KEY = "pausesKey";
+    public static final String JSON_PAUSETIMES_KEY = "pauseTimesKey";
+    public static final String JSON_PAUSEAVG_KEY = "pauseAvgKey";
+    private static final String JSON_DURATION_KEY = "durationKey";
+    private static final String JSON_DATE_KEY = "dateKey";
 
     private CameraSource mCameraSource = null;
 
@@ -60,12 +88,31 @@ public final class FaceTrackerActivity extends AppCompatActivity {
     private GraphicOverlay mGraphicOverlay;
     private SpeechRecognizer mSpeechRecognizer;
     private FloatingActionButton fab;
+    private TextView textView;
     private Intent intent = null;
 
     private static final int RC_HANDLE_GMS = 9001;
     // permission request codes need to be < 256
     private static final int RC_HANDLE_CAMERA_PERM = 2;
+    private static final float BLINK_THRESHOLD = .3f;
+    private static final float Y_THRESHOLD = 13.0f;
+    private static final float Z_THRESHOLD = 13.0f;
+
     private boolean isRecording = false;
+    private float lastLeftEyeProbability = 0.0f;
+    private float lastRightEyeProbability = 0.0f;
+    private int blinks = 0;
+    private int tilts = 0;
+    private int turns = 0;
+    private int pauses = 0;
+    private boolean isBlinking = false;
+    private boolean isTilting = false;
+    private boolean isTurning = false;
+    private long timeOfLastPause = 0;
+    ArrayList<Float> pauseLengths = new ArrayList<>();
+    float averagePause = 0.0f;
+    long startTime = 0L;
+    long endTime = 0L;
 
     //==============================================================================================
     // Activity Methods
@@ -80,28 +127,53 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_face_tracker);
 
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
+        textView = (TextView) findViewById(R.id.textView);
         fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                isRecording = !isRecording;
-                if(isRecording){
-                    if(mSpeechRecognizer==null) {
+                if(!isRecording) {
+                    isRecording = true;
+                    fab.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(R.color.paleBlue)));
+                    startTime = System.currentTimeMillis();
+                    if (mSpeechRecognizer == null) {
                         mSpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(FaceTrackerActivity.this);
-                        mSpeechRecognizer.setRecognitionListener(new Listener());
-                        if(intent == null) {
-                            intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-                            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-                            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-                            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,800);
-                        }
-                        mSpeechRecognizer.startListening(intent);
                     }
+                    if (intent == null) {
+                        intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+                        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500);
+                    }
+                    mSpeechRecognizer.setRecognitionListener(new Listener());
+                    mSpeechRecognizer.startListening(intent);
+
+                    blinks = 0;
+                    turns = 0;
+                    tilts = 0;
+                    pauses = 0;
+                    averagePause = 0;
+                    showStats();
                 } else {
-                    mSpeechRecognizer.stopListening();
-                    mSpeechRecognizer.destroy();
-                    mSpeechRecognizer = null;
-                    mGraphicOverlay.clear();
+                    isRecording = false;
+                    endTime = System.currentTimeMillis();
+                    fab.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(R.color.colorAccent)));
+                    AlertDialog.Builder builder = new AlertDialog.Builder(FaceTrackerActivity.this);
+                    builder.setMessage("Save session?").setPositiveButton("Save", new DialogInterface.OnClickListener(){
+                        public void onClick(DialogInterface dialog, int id){
+                            FaceTrackerActivity.this.attemptSaveToFile();
+                        }
+                    }).setNegativeButton("Cancel", new DialogInterface.OnClickListener(){
+                        public void onClick(DialogInterface dialogInterface, int id){
+                            blinks = 0;
+                            turns = 0;
+                            tilts = 0;
+                            pauses = 0;
+                            startTime = 0L;
+                            endTime = 0L;
+                            showStats();
+                        }
+                    }).create().show();
                 }
             }
         });
@@ -115,6 +187,18 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         } else {
             requestCameraPermission();
         }
+    }
+
+    private void showStats(){
+        Handler mainHandler = new Handler(FaceTrackerActivity.this.getMainLooper());
+
+        Runnable myRunnable = new Runnable() {
+            @Override
+            public void run() {
+                textView.setText("Blinks: " + blinks + " Turns: " + turns + " Tilts: " + tilts + " Pauses: " + pauses);
+            }
+        };
+        mainHandler.post(myRunnable);
     }
 
     /**
@@ -160,8 +244,8 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         FaceDetector detector = new FaceDetector.Builder(context)
                 .setClassificationType(FaceDetector.ALL_CLASSIFICATIONS)
                 .setProminentFaceOnly(true)
+                .setMode(FaceDetector.ACCURATE_MODE)
                 .setTrackingEnabled(true)
-                .setLandmarkType(FaceDetector.ALL_LANDMARKS)
                 .build();
 
         detector.setProcessor(
@@ -265,6 +349,124 @@ public final class FaceTrackerActivity extends AppCompatActivity {
                 .show();
     }
 
+
+    /**
+     * Generates a unique word directory name to save to.
+     * @return - A uniquely named file folder to store word information in.
+     */
+    private File generateFileName(){
+        int n=0;
+        Random random = new Random();
+        String fileName;
+        File file;
+        // Guarantee a unique folder for new character
+        do {
+            n += random.nextInt(100);
+            fileName = "Session" + n + TEXT_FILE_TYPE ;
+            file = new File(getExternalFilesDir(
+                    Environment.DIRECTORY_DOCUMENTS), fileName);
+        } while (file.exists());
+
+        return file;
+    }
+
+    private void attemptSaveToFile(){
+        try {
+            saveToFile();
+        }catch (Exception e){
+            Toast.makeText(this, "Could not save", Toast.LENGTH_SHORT).show();
+            blinks = 0;
+            turns = 0;
+            tilts = 0;
+            pauses = 0;
+            startTime = 0L;
+            endTime = 0L;
+            showStats();
+        }
+    }
+
+    /**
+     * Saves word information to a new directory in the file system.
+     * @throws JSONException
+     * @throws IOException
+     */
+    private void saveToFile() throws JSONException, IOException {
+        File file = generateFileName();
+
+        JSONObject jsonObject = new JSONObject();
+        /*JSONArray pauseTimes = new JSONArray();
+        for (float pause: pauseLengths) {
+            pauseTimes.put(pause);
+        }*/
+
+        jsonObject.put(JSON_BLINKS_KEY, blinks);
+        jsonObject.put(JSON_TILTS_KEY, tilts);
+        jsonObject.put(JSON_TURNS_KEY, turns);
+        jsonObject.put(JSON_PAUSES_KEY, pauses);
+        jsonObject.put(JSON_PAUSEAVG_KEY, averagePause);
+        jsonObject.put(JSON_DURATION_KEY, (endTime - startTime)/1000);
+        jsonObject.put(JSON_DATE_KEY, endTime);
+        //jsonObject.put(MainActivity.JSON_PAUSETIMES_KEY, pauseTimes);
+
+        // Write to file
+        FileWriter fileWriter = new FileWriter(file);
+        try {
+            fileWriter.write(jsonObject.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            fileWriter.flush();
+            fileWriter.close();
+        }
+    }
+
+
+    protected void loadFromFile(File file){
+        if(file.exists()) {
+            BufferedReader bufferedReader = null;
+            StringBuilder stringBuilder = null;
+            try {
+                bufferedReader = new BufferedReader(new FileReader(file));
+                stringBuilder = new StringBuilder();
+                String line = bufferedReader.readLine();
+
+                while (line != null) {
+                    stringBuilder.append(line);
+                    line = bufferedReader.readLine();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if (bufferedReader != null) {
+                    try {
+                        bufferedReader.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            if (stringBuilder != null) {
+                JSONObject jsonObject = null;
+                int blinks = 0;
+                int turns = 0;
+                int tilts = 0;
+                int pauses = 0;
+
+                // Load JSON string from file
+                try {
+                    jsonObject = new JSONObject(stringBuilder.toString());
+                    blinks = jsonObject.getInt(JSON_BLINKS_KEY);
+                    turns = jsonObject.getInt(JSON_TURNS_KEY);
+                    tilts = jsonObject.getInt(JSON_TILTS_KEY);
+                    pauses = jsonObject.getInt(JSON_PAUSES_KEY);
+                } catch (JSONException e){
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
     //==============================================================================================
     // Camera Source Preview
     //==============================================================================================
@@ -338,10 +540,35 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         @Override
         public void onUpdate(FaceDetector.Detections<Face> detectionResults, Face face) {
             if(isRecording) {
+                boolean changed = false;
                 mOverlay.add(mFaceGraphic);
                 mFaceGraphic.updateFace(face);
-                if(face.getIsSmilingProbability() > .75){
-                    Toast.makeText(FaceTrackerActivity.this, "You're smiling!", Toast.LENGTH_SHORT);
+                if(lastLeftEyeProbability - face.getIsLeftEyeOpenProbability() > BLINK_THRESHOLD && !isBlinking){
+                    isBlinking = true;
+                    blinks++;
+                    changed = true;
+                } else if (face.getIsLeftEyeOpenProbability() - lastLeftEyeProbability > BLINK_THRESHOLD && isBlinking) {
+                    isBlinking = false;
+                }
+                lastLeftEyeProbability = face.getIsLeftEyeOpenProbability();
+                lastRightEyeProbability = face.getIsRightEyeOpenProbability();
+
+                if( Math.abs(face.getEulerZ()) > Z_THRESHOLD && !isTilting){
+                    isTilting = true;
+                    tilts++;
+                    changed = true;
+                } else if (Math.abs(face.getEulerZ()) < Z_THRESHOLD && isTilting){
+                    isTilting = false;
+                }
+                if(Math.abs(face.getEulerY()) > Y_THRESHOLD && !isTurning){
+                    isTurning = true;
+                    turns++;
+                    changed = true;
+                } else if (Math.abs(face.getEulerY()) < Y_THRESHOLD && isTurning){
+                    isTurning = false;
+                }
+                if(changed){
+                    FaceTrackerActivity.this.showStats();
                 }
             }
         }
@@ -375,7 +602,16 @@ public final class FaceTrackerActivity extends AppCompatActivity {
 
         @Override
         public void onBeginningOfSpeech() {
-
+            if(timeOfLastPause > 0){
+                long currentTime = System.currentTimeMillis();
+                float lastTime = (float)(currentTime - timeOfLastPause)/1000;
+                //pauses++;
+                //textView.setText("Blinks: " + blinks + " Turns: " + turns + " Tilts: " + tilts + " Pauses: " + pauses);
+                int size = pauseLengths.size();
+                averagePause = size > 0 ? (size*averagePause + lastTime)/(size + 1) : lastTime;
+                pauseLengths.add(lastTime);
+                textView.setText("Pauses: " + size + " Last Time: " + lastTime + " Average: " + averagePause);
+            }
         }
 
         @Override
@@ -390,7 +626,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
 
         @Override
         public void onEndOfSpeech() {
-
+            timeOfLastPause = System.currentTimeMillis();
         }
 
         @Override
@@ -400,9 +636,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
 
         @Override
         public void onResults(Bundle results) {
-            ArrayList<String> data = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-            Toast.makeText(FaceTrackerActivity.this, data.get(0), Toast.LENGTH_SHORT).show();
-            mSpeechRecognizer.setRecognitionListener(this);
+            mSpeechRecognizer.setRecognitionListener(new Listener());
             mSpeechRecognizer.startListening(intent);
         }
 
