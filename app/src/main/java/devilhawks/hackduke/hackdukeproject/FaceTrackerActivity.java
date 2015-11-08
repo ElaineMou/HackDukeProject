@@ -160,6 +160,8 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         FaceDetector detector = new FaceDetector.Builder(context)
                 .setClassificationType(FaceDetector.ALL_CLASSIFICATIONS)
                 .setProminentFaceOnly(true)
+                .setTrackingEnabled(true)
+                .setLandmarkType(FaceDetector.ALL_LANDMARKS)
                 .build();
 
         detector.setProcessor(
@@ -338,6 +340,9 @@ public final class FaceTrackerActivity extends AppCompatActivity {
             if(isRecording) {
                 mOverlay.add(mFaceGraphic);
                 mFaceGraphic.updateFace(face);
+                if(face.getIsSmilingProbability() > .75){
+                    Toast.makeText(FaceTrackerActivity.this, "You're smiling!", Toast.LENGTH_SHORT);
+                }
             }
         }
 
