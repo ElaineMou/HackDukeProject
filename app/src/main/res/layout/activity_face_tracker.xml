@@ -8,27 +8,26 @@
     android:layout_height="match_parent"
     android:keepScreenOn="true">
 
-    <LinearLayout
+    <devilhawks.hackduke.hackdukeproject.CameraSourcePreview
+        android:id="@+id/preview"
         android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
-        <devilhawks.hackduke.hackdukeproject.CameraSourcePreview
-            android:id="@+id/preview"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
+        android:layout_height="match_parent">
 
-            <devilhawks.hackduke.hackdukeproject.GraphicOverlay
-                android:id="@+id/faceOverlay"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" />
-
-        </devilhawks.hackduke.hackdukeproject.CameraSourcePreview>
-        <TextView
-            android:id="@+id/textView"
+        <devilhawks.hackduke.hackdukeproject.GraphicOverlay
+            android:id="@+id/faceOverlay"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@color/colorPrimary"/>
-    </LinearLayout>
+            android:layout_height="match_parent" />
+
+    </devilhawks.hackduke.hackdukeproject.CameraSourcePreview>
+
+    <TextView
+        android:id="@+id/textView"
+        android:text="Blinks:0"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:background="@color/colorPrimary"/>
+
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/fab"
         android:layout_width="wrap_content"
